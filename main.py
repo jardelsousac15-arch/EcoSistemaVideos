@@ -11,6 +11,7 @@ from typing import Optional
 import uuid
 import asyncio
 from datetime import datetime
+import os
 
 from services.frameshot import extract_frames
 from services.promptgen import generate_prompts
@@ -29,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Jobs em memória (em produção use Redis)
+# Jobs em memória
 jobs: dict = {}
 
 
@@ -76,11 +77,6 @@ async def health():
 
 @app.post("/frames")
 async def app01_extract_frames(req: FramesOnlyRequest):
-    """
-    APP 01 — Extrai frames do vídeo TikTok
-    Input:  video_url, frame_count, quality
-    Output: payload frameshot_v1 com frames em base64
-    """
     try:
         result = await extract_frames(
             video_url=req.video_url,
@@ -96,11 +92,6 @@ async def app01_extract_frames(req: FramesOnlyRequest):
 
 @app.post("/prompts")
 async def app02_generate_prompts(req: PromptsOnlyRequest):
-    """
-    APP 02 — Gera prompts a partir dos frames
-    Input:  payload do frameshot_v1 + anthropic_api_key
-    Output: payload promptgen_v1 com prompts em inglês
-    """
     try:
         result = await generate_prompts(
             frames_payload=req.frames_payload,
@@ -115,11 +106,6 @@ async def app02_generate_prompts(req: PromptsOnlyRequest):
 
 @app.post("/images")
 async def app03_generate_images(req: ImagesOnlyRequest):
-    """
-    APP 03 — Gera imagens via Gemini Imagen 3
-    Input:  payload do promptgen_v1 + gemini_api_key
-    Output: payload imagegen_v1 com imagens em base64
-    """
     try:
         result = await generate_images(
             prompts_payload=req.prompts_payload,
@@ -134,10 +120,6 @@ async def app03_generate_images(req: ImagesOnlyRequest):
 
 @app.post("/pipeline")
 async def full_pipeline(req: PipelineRequest, background_tasks: BackgroundTasks):
-    """
-    PIPELINE COMPLETO — Roda APP01 → APP02 → APP03 em sequência
-    Retorna job_id para acompanhar via /job/{id}
-    """
     job_id = str(uuid.uuid4())[:8]
     jobs[job_id] = {
         "id": job_id,
@@ -154,16 +136,13 @@ async def full_pipeline(req: PipelineRequest, background_tasks: BackgroundTasks)
 
 @app.get("/job/{job_id}")
 async def get_job(job_id: str):
-    """Acompanha o status de um pipeline em execução"""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job não encontrado")
     return jobs[job_id]
 
 
 async def run_pipeline(job_id: str, req: PipelineRequest):
-    """Executa o pipeline completo em background"""
     try:
-        # STEP 1: Frames
         jobs[job_id].update({"step": "extracting_frames", "progress": 10})
         frames_payload = await extract_frames(
             video_url=req.video_url,
@@ -172,7 +151,6 @@ async def run_pipeline(job_id: str, req: PipelineRequest):
         )
         jobs[job_id].update({"step": "frames_done", "progress": 35})
 
-        # STEP 2: Prompts
         jobs[job_id].update({"step": "generating_prompts", "progress": 40})
         prompts_payload = await generate_prompts(
             frames_payload=frames_payload,
@@ -180,7 +158,6 @@ async def run_pipeline(job_id: str, req: PipelineRequest):
         )
         jobs[job_id].update({"step": "prompts_done", "progress": 65})
 
-        # STEP 3: Imagens
         jobs[job_id].update({"step": "generating_images", "progress": 70})
         images_payload = await generate_images(
             prompts_payload=prompts_payload,
