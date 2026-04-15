@@ -113,7 +113,7 @@ async def _generate_single_prompt(client: httpx.AsyncClient, frame: dict, api_ke
         parts = [{"text": f"Generate a 2D cartoon image prompt for a TikTok frame at timestamp {ts}. Follow ALL rules strictly. Output only the prompt."}]
 
     response = await client.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
         headers={"Content-Type": "application/json"},
         json={
             "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
