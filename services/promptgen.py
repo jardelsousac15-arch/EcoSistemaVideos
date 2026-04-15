@@ -94,51 +94,42 @@ async def generate_prompts(frames_payload: dict, anthropic_api_key: str) -> dict
 
 
 async def _generate_single_prompt(client: httpx.AsyncClient, frame: dict, api_key: str) -> str:
-    """Chama a API do Claude com a imagem do frame"""
+    """Chama a API do Gemini com a imagem do frame para gerar o prompt"""
     data_url = frame.get("data_url", "")
+    
+    parts = [{"text": "Generate a 2D cartoon image prompt based on this TikTok frame. Follow ALL rules strictly. Output only the prompt."}]
 
-    # Monta o conteúdo: imagem + instrução
     if data_url and data_url.startswith("data:image"):
         media_type = data_url.split(";")[0].split(":")[1]
         b64_data = data_url.split(",")[1]
-        content = [
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": b64_data
-                }
-            },
-            {
-                "type": "text",
-                "text": "Generate a 2D cartoon image prompt based on this TikTok frame. Follow ALL rules strictly. Output only the prompt."
+        parts.append({
+            "inline_data": {
+                "mime_type": media_type,
+                "data": b64_data
             }
-        ]
+        })
     else:
         ts = frame.get("timestamp", "unknown")
-        content = f"Generate a 2D cartoon image prompt for a TikTok frame at timestamp {ts}. Follow ALL rules strictly. Output only the prompt."
+        parts = [{"text": f"Generate a 2D cartoon image prompt for a TikTok frame at timestamp {ts}. Follow ALL rules strictly. Output only the prompt."}]
 
     response = await client.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+        headers={"Content-Type": "application/json"},
         json={
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 300,
-            "system": SYSTEM_PROMPT,
-            "messages": [{"role": "user", "content": content}]
+            "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{"parts": parts}],
+            "generationConfig": {"maxOutputTokens": 300}
         }
     )
 
     if response.status_code != 200:
-        raise RuntimeError(f"Claude API error {response.status_code}: {response.text}")
+        raise RuntimeError(f"Gemini API error {response.status_code}: {response.text}")
 
     data = response.json()
-    return data["content"][0]["text"].strip()
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError):
+        raise RuntimeError(f"Unexpected response from Gemini: {data}")
 
 
 def _sanitize_prompt(text: str) -> str:
