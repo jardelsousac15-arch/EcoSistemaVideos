@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ECOSYSTEM — TikTok → AI Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #06060a;
+  --s1: #0e0e16;
+  --s2: #14141f;
+  --border: #1c1c2e;
+  --accent: #00ff88;
+  --purple: #7c3aed;
+  --pink: #ff3d6e;
+  --text: #ddddf0;
+  --muted: #4a4a6a;
+  --font: 'Syne', sans-serif;
+  --mono: 'Space Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    linear-gradient(rgba(0,255,136,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events:none; z-index:0;
+}
+header {
+  position: relative; z-index:10;
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex; align-items: center; gap: 16px;
+  background: rgba(6,6,10,.92);
+  backdrop-filter: blur(12px);
+}
+.logo { font-size: 22px; font-weight: 800; letter-spacing: -1px; color: var(--accent); text-transform: uppercase; }
+.logo span { color: var(--muted); font-weight: 400; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted);
+  margin-left: auto;
+  transition: background .3s, box-shadow .3s;
+}
+.status-dot.ok { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+.status-dot.err { background: var(--pink); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.version-tag {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px;
+}
+.container {
+  position: relative; z-index:1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.hero { margin-bottom: 48px; animation: fadein .6s ease both; }
+@keyframes fadein { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+.hero h1 {
+  font-size: clamp(36px, 6vw, 68px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -2px;
+  margin-bottom: 14px;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { font-family: var(--mono); font-size: 13px; color: var(--muted); max-width: 460px; line-height: 1.7; }
+.flow {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 40px; flex-wrap: wrap;
+  animation: fadein .6s .1s ease both;
+}
+.flow-step {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s1); border: 1px solid var(--border);
+  padding: 8px 14px; border-radius: 8px;
+  font-family: var(--mono); font-size: 12px;
+}
+.flow-step .num {
+  background: var(--accent); color: #000;
+  width: 20px; height: 20px; border-radius: 4px;
+  display: flex; align-items:center; justify-content:center;
+  font-weight: 700; font-size: 11px; flex-shrink:0;
+}
+.flow-step.p .num { background: var(--purple); color:#fff; }
+.flow-step.i .num { background: var(--pink); color:#fff; }
+.flow-arrow { color: var(--muted); font-size: 18px; }
+.tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  margin-bottom: 28px;
+  animation: fadein .6s .15s ease both;
+}
+.tab-btn {
+  flex: 1; padding: 11px 8px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--muted); font-family: var(--mono); font-size: 11px;
+  transition: all .2s; border-right: 1px solid var(--border);
+  text-align: center; white-space: nowrap;
+}
+.tab-btn:last-child { border-right: none; }
+.tab-btn:hover { background: var(--s1); color: var(--text); }
+.tab-btn.active { background: var(--s2); color: var(--accent); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadein .3s ease; }
+.card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--accent);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.badge {
+  background: rgba(0,255,136,.1); color: var(--accent);
+  font-size: 10px; padding: 2px 8px; border-radius: 20px;
+  font-family: var(--mono);
+}
+.field { margin-bottom: 14px; }
+label {
+  display: block; font-family: var(--mono);
+  font-size: 10px; color: var(--muted);
+  margin-bottom: 5px; text-transform: uppercase; letter-spacing:.5px;
+}
+input, textarea {
+  width: 100%; background: var(--bg);
+  border: 1px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+  padding: 10px 12px; border-radius: 7px;
+  outline: none; transition: border-color .2s;
+  resize: vertical;
+}
+input:focus, textarea:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.input-hint { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 20px; border-radius: 7px;
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .2s; border: none;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #00e07a; transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0,255,136,.25); }
+.btn-primary:active { transform: none; }
+.btn-primary:disabled { opacity:.35; cursor:not-allowed; transform:none; box-shadow:none; }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-danger { background: rgba(255,61,110,.1); color: var(--pink); border: 1px solid rgba(255,61,110,.2); }
+.btn-danger:hover { background: rgba(255,61,110,.18); }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.progress-box {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 18px;
+  margin-top: 16px; display: none;
+}
+.progress-box.visible { display: block; animation: fadein .3s ease; }
+.progress-header {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 11px; margin-bottom: 10px;
+}
+.progress-status { color: var(--accent); }
+.progress-pct { color: var(--muted); }
+.progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
+.progress-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 2px; transition: width .5s ease;
+  box-shadow: 0 0 8px var(--accent);
+  width: 0%;
+}
+.step-list { display: flex; flex-direction: column; gap: 5px; }
+.step-item {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.step-item.done { color: var(--accent); }
+.step-item.active { color: var(--text); }
+.step-icon { width: 14px; text-align: center; flex-shrink:0; }
+.results-section { margin-top: 24px; display: none; }
+.results-section.visible { display: block; animation: fadein .4s ease; }
+.section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--muted);
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title::after { content:''; flex:1; height:1px; background: var(--border); }
+.frames-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.frame-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 7px; overflow: hidden; cursor: pointer;
+  transition: border-color .2s, transform .2s;
+}
+.frame-card:hover { border-color: var(--accent); transform: scale(1.03); }
+.frame-card img { width: 100%; aspect-ratio: 9/16; object-fit: cover; display: block; }
+.frame-label {
+  padding: 5px 7px; font-family: var(--mono); font-size: 9px;
+  color: var(--muted); display: flex; justify-content: space-between;
+}
+.prompt-list { display: flex; flex-direction: column; gap: 10px; }
+.prompt-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 14px;
+}
+.prompt-item-header {
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 8px;
+}
+.prompt-num {
+  background: var(--purple); color: #fff;
+  width: 20px; height: 20px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.prompt-ts { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.prompt-text { font-size: 13px; line-height: 1.6; color: var(--text); }
+.prompt-note { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 6px; font-style: italic; }
+.copy-btn {
+  margin-left: auto; background: transparent; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 10px;
+  padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all .2s;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.image-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+.image-card img { width: 100%; aspect-ratio: 9/16; object-fit: cover; display: block; cursor: pointer; }
+.image-card-footer {
+  padding: 7px 10px; font-family: var(--mono); font-size: 10px;
+  color: var(--muted); display: flex; justify-content: space-between; align-items: center;
+}
+.download-btn {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--accent); font-size: 15px; transition: transform .2s;
+}
+.download-btn:hover { transform: scale(1.2); }
+.error-badge { background: rgba(255,61,110,.15); color: var(--pink); font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+.stats-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px; margin-bottom: 18px;
+}
+.stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 13px 14px; }
+.stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.stat-val { font-size: 22px; font-weight: 800; color: var(--accent); }
+.stat-val.purple { color: var(--purple); }
+.stat-val.pink { color: var(--pink); }
+.stat-val.muted { color: var(--muted); }
+.alert {
+  padding: 11px 14px; border-radius: 7px;
+  font-family: var(--mono); font-size: 11px;
+  margin-bottom: 14px; display: none; line-height: 1.5;
+}
+.alert.visible { display: block; animation: fadein .3s ease; }
+.alert-error { background: rgba(255,61,110,.1); border: 1px solid rgba(255,61,110,.22); color: var(--pink); }
+.alert-success { background: rgba(0,255,136,.07); border: 1px solid rgba(0,255,136,.18); color: var(--accent); }
+.alert-info { background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.2); color: #a78bfa; }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.88);
+  z-index: 100; display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; animation: fadein .2s ease; }
+.modal-box {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 12px; max-width: 400px; width: 90%; padding: 20px;
+  position: relative;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 14px;
+  background: transparent; border: none; color: var(--muted);
+  font-size: 20px; cursor: pointer; transition: color .2s;
+}
+.modal-close:hover { color: var(--text); }
+.modal-img { width: 100%; border-radius: 7px; display: block; margin-bottom: 10px; }
+.backend-status { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; margin-top: 8px; }
+.backend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background .3s, box-shadow .3s; }
+.backend-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.backend-dot.err { background: var(--pink); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+@media(max-width:600px) {
+  .field-row { grid-template-columns: 1fr; }
+  header { padding: 14px 16px; }
+  .container { padding: 24px 14px 60px; }
+  .flow-arrow { display: none; }
+  .tabs { overflow-x: auto; }
+  .tab-btn { font-size: 10px; padding: 10px 6px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ECO<span>SYSTEM</span></div>
+  <div class="version-tag">v1.1</div>
+  <div class="status-dot" id="headerDot" title="Status do backend"></div>
+</header>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>TikTok <em>→</em> AI<br/>Pipeline</h1>
+    <p>Extraia frames · Gere prompts com Gemini · Crie imagens com Imagen 3</p>
+  </div>
+
+  <div class="flow">
+    <div class="flow-step"><span class="num">1</span> FRAMESHOT</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step p"><span class="num">2</span> PROMPTGEN</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step i"><span class="num">3</span> IMAGEGEN</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('pipeline')">⚡ Pipeline</button>
+    <button class="tab-btn" onclick="switchTab('frames')">🎞 Frames</button>
+    <button class="tab-btn" onclick="switchTab('prompts')">✏️ Prompts</button>
+    <button class="tab-btn" onclick="switchTab('images')">🖼 Imagens</button>
+    <button class="tab-btn" onclick="switchTab('config')">⚙️ Config</button>
+  </div>
+
+  <!-- TAB PIPELINE -->
+  <div class="tab-panel active" id="tab-pipeline">
+    <div id="alertPipeline" class="alert"></div>
+    <div class="card">
+      <div class="card-title">Pipeline Completo <span class="badge">POST /pipeline</span></div>
+      <div class="field">
+        <label>URL do TikTok</label>
+        <input type="url" id="pipelineUrl" placeholder="https://www.tiktok.com/@user/video/..."/>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Nº de Frames</label>
+          <input type="number" id="pipelineFrames" value="8" min="1" max="20"/>
+          <div class="input-hint">Recomendado: 6–10</div>
+        </div>
+        <div class="field">
+          <label>Qualidade JPEG (%)</label>
+          <input type="number" id="pipelineQuality" value="90" min="10" max="100"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Gemini API Key</label>
+        <input type="password" id="pipelineGeminiKey" placeholder="AIza..."/>
+        <div class="input-hint">Usada para gerar prompts (Gemini Vision) e imagens (Imagen 3)</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnRunPipeline" onclick="runPipeline()">▶ Executar Pipeline</button>
+        <button class="btn btn-ghost" onclick="clearPipelineResults()">✕ Limpar</button>
+      </div>
+    </div>
+
+    <div class="progress-box" id="pipelineProgress">
+      <div class="progress-header">
+        <span class="progress-status" id="progStatus">Iniciando...</span>
+        <span class="progress-pct" id="progPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+      <div class="step-list">
+        <div class="step-item" id="step-starting"><span class="step-icon">○</span> Preparando job</div>
+        <div class="step-item" id="step-extracting_frames"><span class="step-icon">○</span> Extraindo frames do TikTok</div>
+        <div class="step-item" id="step-frames_done"><span class="step-icon">○</span> Frames extraídos</div>
+        <div class="step-item" id="step-generating_prompts"><span class="step-icon">○</span> Gerando prompts com Gemini</div>
+        <div class="step-item" id="step-prompts_done"><span class="step-icon">○</span> Prompts gerados</div>
+        <div class="step-item" id="step-generating_images"><span class="step-icon">○</span> Gerando imagens com Imagen 3</div>
+        <div class="step-item" id="step-completed"><span class="step-icon">○</span> Pipeline concluído!</div>
+      </div>
+    </div>
+
+    <div class="results-section" id="pipelineResults">
+      <div class="section-title">Resultado</div>
+      <div class="stats-row" id="pipelineStats"></div>
+      <div class="section-title">Imagens Geradas</div>
+      <div class="images-grid" id="pipelineImagesGrid"></div>
+    </div>
+  </div>
+
+  <!-- TAB FRAMES -->
+  <div class="tab-panel" id="tab-frames">
+    <div id="alertFrames" class="alert"></div>
+    <div class="card">
+      <div class="card-title">Extrair Frames <span class="badge">POST /frames</span></div>
+      <div class="field">
+        <label>URL do TikTok</label>
+        <input type="url" id="framesUrl" placeholder="https://www.tiktok.com/@user/video/..."/>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Nº de Frames</label>
+          <input type="number" id="framesCount" value="8" min="1" max="20"/>
+        </div>
+        <div class="field">
+          <label>Qualidade JPEG (%)</label>
+          <input type="number" id="framesQuality" value="90" min="10" max="100"/>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnFrames" onclick="runFrames()">▶ Extrair Frames</button>
+      </div>
+    </div>
+    <div class="results-section" id="framesResults">
+      <div class="section-title">Frames Extraídos</div>
+      <div class="frames-grid" id="framesGrid"></div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn btn-ghost" onclick="sendFramesToPrompts()">→ Enviar para Prompts</button>
+        <button class="btn btn-ghost" onclick="copyPayload(framesPayload, 'alertFrames')">📋 Copiar Payload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB PROMPTS -->
+  <div class="tab-panel" id="tab-prompts">
+    <div id="alertPrompts" class="alert"></div>
+    <div class="card">
+      <div class="card-title">Gerar Prompts <span class="badge">POST /prompts</span></div>
+      <div class="field">
+        <label>Gemini API Key</label>
+        <input type="password" id="promptsGeminiKey" placeholder="AIza..."/>
+      </div>
+      <div class="field">
+        <label>Frames Payload (JSON)</label>
+        <textarea id="promptsFramesPayload" rows="5" placeholder='{"source":"frameshot_v1",...}'></textarea>
+        <div class="input-hint">Cole o payload do /frames ou use "Enviar para Prompts" na aba Frames</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnPrompts" onclick="runPrompts()">▶ Gerar Prompts</button>
+      </div>
+    </div>
+    <div class="results-section" id="promptsResults">
+      <div class="section-title">Prompts Gerados</div>
+      <div class="prompt-list" id="promptsList"></div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn btn-ghost" onclick="sendPromptsToImages()">→ Enviar para Imagens</button>
+        <button class="btn btn-ghost" onclick="copyPayload(promptsPayload, 'alertPrompts')">📋 Copiar Payload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB IMAGES -->
+  <div class="tab-panel" id="tab-images">
+    <div id="alertImages" class="alert"></div>
+    <div class="card">
+      <div class="card-title">Gerar Imagens <span class="badge">POST /images</span></div>
+      <div class="field">
+        <label>Gemini API Key</label>
+        <input type="password" id="imagesGeminiKey" placeholder="AIza..."/>
+      </div>
+      <div class="field">
+        <label>Prompts Payload (JSON)</label>
+        <textarea id="imagesPromptsPayload" rows="5" placeholder='{"source":"promptgen_v1",...}'></textarea>
+        <div class="input-hint">Cole o payload do /prompts ou use "Enviar para Imagens" na aba Prompts</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnImages" onclick="runImages()">▶ Gerar Imagens</button>
+      </div>
+    </div>
+    <div class="results-section" id="imagesResults">
+      <div class="section-title">Imagens Geradas</div>
+      <div class="images-grid" id="imagesGrid"></div>
+    </div>
+  </div>
+
+  <!-- TAB CONFIG -->
+  <div class="tab-panel" id="tab-config">
+    <div class="card">
+      <div class="card-title">Backend URL</div>
+      <div class="field">
+        <label>URL do Backend (Railway)</label>
+        <input type="url" id="backendUrl" placeholder="https://seu-app.up.railway.app"/>
+        <div class="input-hint">Ex: https://ecosistema-production.up.railway.app</div>
+      </div>
+      <div class="backend-status">
+        <div class="backend-dot" id="backendDot"></div>
+        <span id="backendStatusText" style="color:var(--muted);">Não testado</span>
+      </div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn btn-primary" onclick="testBackend()">🔌 Testar Conexão</button>
+        <button class="btn btn-ghost" onclick="saveConfig()">💾 Salvar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Chave Salva <span class="badge" style="background:rgba(255,61,110,.1);color:var(--pink)">Só no seu browser</span></div>
+      <div class="field">
+        <label>Gemini API Key</label>
+        <input type="password" id="savedGeminiKey" placeholder="AIza..."/>
+        <div class="input-hint">Usada para prompts (Gemini Vision) e imagens (Imagen 3)</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveKeys()">💾 Salvar Chave</button>
+        <button class="btn btn-danger" onclick="clearKeys()">🗑 Apagar</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:12px;line-height:1.6;">
+        ⚠ Salva apenas no localStorage do seu navegador.<br/>
+        Nunca enviada a nenhum servidor além do seu próprio backend.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Endpoints da API</div>
+      <div style="font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:9px;">
+        <div><span style="color:var(--accent)">GET&nbsp;</span> <span style="color:var(--muted)">/health</span> — status do servidor</div>
+        <div><span style="color:var(--pink)">POST</span> <span style="color:var(--muted)">/frames</span> — extrai frames do TikTok</div>
+        <div><span style="color:var(--pink)">POST</span> <span style="color:var(--muted)">/prompts</span> — gera prompts com Gemini Vision</div>
+        <div><span style="color:var(--pink)">POST</span> <span style="color:var(--muted)">/images</span> — gera imagens com Imagen 3</div>
+        <div><span style="color:var(--pink)">POST</span> <span style="color:var(--muted)">/pipeline</span> — pipeline completo (async)</div>
+        <div><span style="color:var(--accent)">GET&nbsp;</span> <span style="color:var(--muted)">/job/{id}</span> — polling do job</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <img id="modalImg" class="modal-img" src="" alt=""/>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);" id="modalCaption"></div>
+  </div>
+</div>
+
+<script>
+// ── STATE
+let framesPayload = null;
+let promptsPayload = null;
+let pollInterval = null;
+
+// ── INIT
+window.addEventListener('load', () => {
+  loadConfig();
+  const url = document.getElementById('backendUrl').value;
+  if (url) testBackend(true);
+});
+
+// ── CONFIG
+function getBackendUrl() {
+  return (document.getElementById('backendUrl').value || '').replace(/\/$/, '');
+}
+function saveConfig() {
+  localStorage.setItem('eco_backend_url', document.getElementById('backendUrl').value);
+  showAlert('alertPipeline', '✓ URL salva!', 'success');
+}
+function saveKeys() {
+  localStorage.setItem('eco_gemini', document.getElementById('savedGeminiKey').value);
+  fillSavedKeys();
+  showAlert('alertPipeline', '✓ Chave salva no navegador!', 'success');
+  switchTab('pipeline');
+}
+function clearKeys() {
+  localStorage.removeItem('eco_gemini');
+  document.getElementById('savedGeminiKey').value = '';
+}
+function fillSavedKeys() {
+  const gem = localStorage.getItem('eco_gemini') || '';
+  if (gem) {
+    document.getElementById('pipelineGeminiKey').value = gem;
+    document.getElementById('promptsGeminiKey').value = gem;
+    document.getElementById('imagesGeminiKey').value = gem;
+  }
+}
+function loadConfig() {
+  const url = localStorage.getItem('eco_backend_url') || '';
+  document.getElementById('backendUrl').value = url;
+  const gem = localStorage.getItem('eco_gemini') || '';
+  if (gem) document.getElementById('savedGeminiKey').value = gem;
+  fillSavedKeys();
+}
+
+async function testBackend(silent = false) {
+  const url = getBackendUrl();
+  const dot = document.getElementById('backendDot');
+  const txt = document.getElementById('backendStatusText');
+  const hDot = document.getElementById('headerDot');
+  if (!url) { txt.textContent = 'URL não configurada'; return; }
+  txt.textContent = 'Testando...';
+  dot.className = 'backend-dot';
+  try {
+    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(7000) });
+    const data = await res.json();
+    dot.className = 'backend-dot ok';
+    hDot.className = 'status-dot ok';
+    txt.textContent = `Online · ${data.timestamp || 'ok'}`;
+    if (!silent) showAlert('alertPipeline', '✓ Backend online e respondendo!', 'success');
+  } catch(e) {
+    dot.className = 'backend-dot err';
+    hDot.className = 'status-dot err';
+    txt.textContent = `Erro: ${e.message}`;
+    if (!silent) showAlert('alertPipeline', `Não conectou: ${e.message}`, 'error');
+  }
+}
+
+// ── TABS
+function switchTab(name) {
+  const names = ['pipeline','frames','prompts','images','config'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+// ── ALERTS
+function showAlert(id, msg, type='error') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `alert alert-${type} visible`;
+  setTimeout(() => el.classList.remove('visible'), 5000);
+}
+
+// ── PIPELINE
+async function runPipeline() {
+  const url = getBackendUrl();
+  if (!url) return showAlert('alertPipeline', 'Configure a URL do backend na aba ⚙️ Config.', 'error');
+  const videoUrl = document.getElementById('pipelineUrl').value.trim();
+  if (!videoUrl) return showAlert('alertPipeline', 'Insira a URL do TikTok.', 'error');
+  const geminiKey = document.getElementById('pipelineGeminiKey').value.trim();
+  if (!geminiKey) return showAlert('alertPipeline', 'Insira a Gemini API Key.', 'error');
+
+  const btn = document.getElementById('btnRunPipeline');
+  btn.disabled = true; btn.textContent = '⏳ Rodando...';
+
+  clearPipelineResults();
+  resetProgress();
+  document.getElementById('pipelineProgress').classList.add('visible');
+
+  try {
+    const res = await fetch(`${url}/pipeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_url: videoUrl,
+        frame_count: parseInt(document.getElementById('pipelineFrames').value) || 8,
+        quality: parseInt(document.getElementById('pipelineQuality').value) || 90,
+        gemini_api_key: geminiKey
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+    const { job_id } = await res.json();
+    pollJob(job_id, url, btn);
+  } catch(e) {
+    showAlert('alertPipeline', `Erro: ${e.message}`, 'error');
+    btn.disabled = false; btn.textContent = '▶ Executar Pipeline';
+    document.getElementById('pipelineProgress').classList.remove('visible');
+  }
+}
+
+function pollJob(jobId, baseUrl, btn) {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/job/${jobId}`);
+      const job = await res.json();
+      updateProgress(job);
+      if (job.status === 'done') {
+        clearInterval(pollInterval);
+        btn.disabled = false; btn.textContent = '▶ Executar Pipeline';
+        showPipelineResults(job.result);
+      } else if (job.status === 'error') {
+        clearInterval(pollInterval);
+        btn.disabled = false; btn.textContent = '▶ Executar Pipeline';
+        showAlert('alertPipeline', `Pipeline falhou: ${job.error}`, 'error');
+      }
+    } catch(e) {
+      clearInterval(pollInterval);
+      btn.disabled = false; btn.textContent = '▶ Executar Pipeline';
+      showAlert('alertPipeline', `Erro ao verificar job: ${e.message}`, 'error');
+    }
+  }, 2500);
+}
+
+const STEP_LABELS = {
+  starting: 'Preparando job',
+  extracting_frames: 'Extraindo frames do TikTok',
+  frames_done: 'Frames extraídos',
+  generating_prompts: 'Gerando prompts com Gemini',
+  prompts_done: 'Prompts gerados',
+  generating_images: 'Gerando imagens com Imagen 3',
+  completed: 'Pipeline concluído!'
+};
+const STEP_ORDER = ['starting','extracting_frames','frames_done','generating_prompts','prompts_done','generating_images','completed'];
+
+function updateProgress(job) {
+  document.getElementById('progStatus').textContent = STEP_LABELS[job.step] || job.step;
+  document.getElementById('progPct').textContent = `${job.progress}%`;
+  document.getElementById('progFill').style.width = `${job.progress}%`;
+  const curIdx = STEP_ORDER.indexOf(job.step);
+  STEP_ORDER.forEach((s, i) => {
+    const el = document.getElementById(`step-${s}`);
+    if (!el) return;
+    if (i < curIdx) { el.className = 'step-item done'; el.querySelector('.step-icon').textContent = '✓'; }
+    else if (i === curIdx) { el.className = 'step-item active'; el.querySelector('.step-icon').textContent = '›'; }
+    else { el.className = 'step-item'; el.querySelector('.step-icon').textContent = '○'; }
+  });
+}
+
+function resetProgress() {
+  document.getElementById('progFill').style.width = '0%';
+  document.getElementById('progStatus').textContent = 'Iniciando...';
+  document.getElementById('progPct').textContent = '0%';
+  document.querySelectorAll('.step-item').forEach(el => {
+    el.className = 'step-item';
+    el.querySelector('.step-icon').textContent = '○';
+  });
+}
+
+function showPipelineResults(result) {
+  const { frames, prompts, images } = result;
+  document.getElementById('pipelineResults').classList.add('visible');
+  document.getElementById('pipelineStats').innerHTML = `
+    <div class="stat-box"><div class="stat-label">Frames</div><div class="stat-val">${frames.frame_count || 0}</div></div>
+    <div class="stat-box"><div class="stat-label">Prompts</div><div class="stat-val purple">${prompts.prompt_count || 0}</div></div>
+    <div class="stat-box"><div class="stat-label">Imagens OK</div><div class="stat-val pink">${images.success_count || 0}</div></div>
+    <div class="stat-box"><div class="stat-label">Erros</div><div class="stat-val muted">${images.error_count || 0}</div></div>
+  `;
+  renderImagesGrid('pipelineImagesGrid', images.images || []);
+  showAlert('alertPipeline', `✓ Pipeline concluído! ${images.success_count} imagens geradas.`, 'success');
+}
+
+function clearPipelineResults() {
+  document.getElementById('pipelineResults').classList.remove('visible');
+  document.getElementById('pipelineStats').innerHTML = '';
+  document.getElementById('pipelineImagesGrid').innerHTML = '';
+  document.getElementById('pipelineProgress').classList.remove('visible');
+}
+
+// ── FRAMES
+async function runFrames() {
+  const url = getBackendUrl();
+  if (!url) return showAlert('alertFrames', 'Configure a URL do backend na aba ⚙️ Config.', 'error');
+  const videoUrl = document.getElementById('framesUrl').value.trim();
+  if (!videoUrl) return showAlert('alertFrames', 'Insira a URL do TikTok.', 'error');
+  const btn = document.getElementById('btnFrames');
+  btn.disabled = true; btn.textContent = '⏳ Extraindo...';
+  try {
+    const res = await fetch(`${url}/frames`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_url: videoUrl,
+        frame_count: parseInt(document.getElementById('framesCount').value) || 8,
+        quality: parseInt(document.getElementById('framesQuality').value) || 90
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+    framesPayload = await res.json();
+    renderFrames(framesPayload.frames || []);
+    document.getElementById('framesResults').classList.add('visible');
+    showAlert('alertFrames', `✓ ${framesPayload.frame_count} frames extraídos!`, 'success');
+  } catch(e) {
+    showAlert('alertFrames', `Erro: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Extrair Frames';
+  }
+}
+
+function renderFrames(frames) {
+  document.getElementById('framesGrid').innerHTML = frames.map(f => `
+    <div class="frame-card" onclick="openModal('${f.data_url}','Frame ${f.id} · ${f.timestamp}')">
+      <img src="${f.data_url}" alt="Frame ${f.id}" loading="lazy"/>
+      <div class="frame-label"><span>#${f.id}</span><span>${f.timestamp}</span></div>
+    </div>
+  `).join('');
+}
+
+function sendFramesToPrompts() {
+  if (!framesPayload) return;
+  document.getElementById('promptsFramesPayload').value = JSON.stringify(framesPayload, null, 2);
+  switchTab('prompts');
+}
+
+// ── PROMPTS
+async function runPrompts() {
+  const url = getBackendUrl();
+  if (!url) return showAlert('alertPrompts', 'Configure a URL do backend na aba ⚙️ Config.', 'error');
+  const apiKey = document.getElementById('promptsGeminiKey').value.trim();
+  if (!apiKey) return showAlert('alertPrompts', 'Insira a Gemini API Key.', 'error');
+  let payload;
+  try { payload = JSON.parse(document.getElementById('promptsFramesPayload').value); }
+  catch { return showAlert('alertPrompts', 'Payload JSON inválido.', 'error'); }
+  const btn = document.getElementById('btnPrompts');
+  btn.disabled = true; btn.textContent = '⏳ Gerando...';
+  try {
+    const res = await fetch(`${url}/prompts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frames_payload: payload, gemini_api_key: apiKey })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+    promptsPayload = await res.json();
+    renderPrompts(promptsPayload.prompts || []);
+    document.getElementById('promptsResults').classList.add('visible');
+    showAlert('alertPrompts', `✓ ${promptsPayload.prompt_count} prompts gerados!`, 'success');
+  } catch(e) {
+    showAlert('alertPrompts', `Erro: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Gerar Prompts';
+  }
+}
+
+function renderPrompts(prompts) {
+  document.getElementById('promptsList').innerHTML = prompts.map(p => `
+    <div class="prompt-item">
+      <div class="prompt-item-header">
+        <div class="prompt-num">${p.id}</div>
+        <span class="prompt-ts">⏱ ${p.timestamp}</span>
+        <button class="copy-btn" onclick="copyText(this.dataset.text, this)" data-text="${escAttr(p.prompt)}">copiar</button>
+      </div>
+      <div class="prompt-text">${escHtml(p.prompt)}</div>
+      ${p.pt_note ? `<div class="prompt-note">🇧🇷 ${escHtml(p.pt_note)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function sendPromptsToImages() {
+  if (!promptsPayload) return;
+  document.getElementById('imagesPromptsPayload').value = JSON.stringify(promptsPayload, null, 2);
+  switchTab('images');
+}
+
+// ── IMAGES
+async function runImages() {
+  const url = getBackendUrl();
+  if (!url) return showAlert('alertImages', 'Configure a URL do backend na aba ⚙️ Config.', 'error');
+  const apiKey = document.getElementById('imagesGeminiKey').value.trim();
+  if (!apiKey) return showAlert('alertImages', 'Insira a Gemini API Key.', 'error');
+  let payload;
+  try { payload = JSON.parse(document.getElementById('imagesPromptsPayload').value); }
+  catch { return showAlert('alertImages', 'Payload JSON inválido.', 'error'); }
+  const btn = document.getElementById('btnImages');
+  btn.disabled = true; btn.textContent = '⏳ Gerando imagens...';
+  try {
+    const res = await fetch(`${url}/images`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompts_payload: payload, gemini_api_key: apiKey })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+    const data = await res.json();
+    renderImagesGrid('imagesGrid', data.images || []);
+    document.getElementById('imagesResults').classList.add('visible');
+    showAlert('alertImages', `✓ ${data.success_count}/${data.total} imagens geradas!`, 'success');
+  } catch(e) {
+    showAlert('alertImages', `Erro: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Gerar Imagens';
+  }
+}
+
+function renderImagesGrid(gridId, images) {
+  document.getElementById(gridId).innerHTML = images.map(img => {
+    if (img.status === 'error' || !img.data_url) return `
+      <div class="image-card">
+        <div style="aspect-ratio:9/16;background:var(--s2);display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Falhou</span>
+        </div>
+        <div class="image-card-footer"><span>#${img.id} · ${img.timestamp}</span><span class="error-badge">erro</span></div>
+      </div>`;
+    return `
+      <div class="image-card">
+        <img src="${img.data_url}" alt="Imagem ${img.id}" loading="lazy"
+             onclick="openModal('${img.data_url}','Imagem ${img.id} · ${img.timestamp}')"/>
+        <div class="image-card-footer">
+          <span>#${img.id} · ${img.timestamp}</span>
+          <button class="download-btn" title="Download"
+                  onclick="downloadImage('${img.data_url}','${img.filename || 'image_'+img.id+'.jpg'}')">↓</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── UTILS
+function downloadImage(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = filename; a.click();
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text);
+  const orig = btn.textContent;
+  btn.textContent = '✓ copiado';
+  setTimeout(() => btn.textContent = orig, 2000);
+}
+
+function copyPayload(payload, alertId) {
+  if (!payload) return;
+  navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+  showAlert(alertId, '📋 Payload copiado!', 'success');
+}
+
+function openModal(src, caption) {
+  document.getElementById('modalImg').src = src;
+  document.getElementById('modalCaption').textContent = caption;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalOverlay') || e.currentTarget.classList?.contains('modal-close')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.getElementById('modalImg').src = '';
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

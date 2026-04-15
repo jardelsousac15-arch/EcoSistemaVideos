@@ -23,7 +23,6 @@ class PipelineRequest(BaseModel):
     frame_count: int = 8
     quality: int = 90
     gemini_api_key: str
-    anthropic_api_key: str
 
 class FramesOnlyRequest(BaseModel):
     video_url: str
@@ -32,7 +31,7 @@ class FramesOnlyRequest(BaseModel):
 
 class PromptsOnlyRequest(BaseModel):
     frames_payload: dict
-    anthropic_api_key: str
+    gemini_api_key: str
 
 class ImagesOnlyRequest(BaseModel):
     prompts_payload: dict
@@ -65,7 +64,7 @@ async def app01_extract_frames(req: FramesOnlyRequest):
 async def app02_generate_prompts(req: PromptsOnlyRequest):
     try:
         from services.promptgen import generate_prompts
-        result = await generate_prompts(req.frames_payload, req.anthropic_api_key)
+        result = await generate_prompts(req.frames_payload, req.gemini_api_key)
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -115,7 +114,7 @@ async def run_pipeline(job_id: str, req: PipelineRequest):
         jobs[job_id].update({"step": "frames_done", "progress": 35})
 
         jobs[job_id].update({"step": "generating_prompts", "progress": 40})
-        prompts_payload = await generate_prompts(frames_payload, req.anthropic_api_key)
+        prompts_payload = await generate_prompts(frames_payload, req.gemini_api_key)
         jobs[job_id].update({"step": "prompts_done", "progress": 65})
 
         jobs[job_id].update({"step": "generating_images", "progress": 70})

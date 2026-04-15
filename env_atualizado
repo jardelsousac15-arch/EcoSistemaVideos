@@ -1,0 +1,13 @@
+# ECOSYSTEM — variáveis de ambiente
+# Copie este arquivo para .env e preencha com suas chaves
+
+# Porta do servidor (padrão: 8000)
+PORT=8000
+
+# Sua chave Gemini (usada para prompts E imagens)
+GEMINI_API_KEY=sua_chave_gemini_aqui
+
+# Configurações opcionais
+MAX_FRAME_COUNT=20
+DEFAULT_QUALITY=90
+CORS_ORIGINS=*
