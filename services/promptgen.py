@@ -1,6 +1,6 @@
 """
 APP 02 · PROMPTGEN SERVICE
-Recebe frames do Frameshot e gera prompts via Claude (Anthropic API)
+Recebe frames do Frameshot e gera prompts via Gemini Vision (Google API)
 Regras: 2D cartoon, bold outlines, 9:16 full-bleed, sem preto/branco, sem sunset, sem bordas
 """
 
@@ -8,6 +8,8 @@ import asyncio
 import httpx
 from datetime import datetime
 
+
+GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 SYSTEM_PROMPT = """You are an expert AI image prompt engineer for 2D cartoon TikTok content.
 
@@ -39,9 +41,9 @@ FORBIDDEN = ["black and white", "grayscale", "monochrome", "sunset", "golden hou
              "white border", "vignette", "letterbox", "muted", "desaturated", "sepia"]
 
 
-async def generate_prompts(frames_payload: dict, anthropic_api_key: str) -> dict:
+async def generate_prompts(frames_payload: dict, gemini_api_key: str) -> dict:
     """
-    Gera um prompt por frame usando Claude com visão.
+    Gera um prompt por frame usando Gemini Vision.
     Retorna payload no formato promptgen_v1.
     """
     frames = frames_payload.get("frames", [])
@@ -51,7 +53,7 @@ async def generate_prompts(frames_payload: dict, anthropic_api_key: str) -> dict
     prompts = []
     async with httpx.AsyncClient(timeout=60.0) as client:
         for i, frame in enumerate(frames):
-            prompt_text = await _generate_single_prompt(client, frame, anthropic_api_key)
+            prompt_text = await _generate_single_prompt(client, frame, gemini_api_key)
             prompt_text = _sanitize_prompt(prompt_text)
 
             prompts.append({
@@ -94,31 +96,44 @@ async def generate_prompts(frames_payload: dict, anthropic_api_key: str) -> dict
 
 
 async def _generate_single_prompt(client: httpx.AsyncClient, frame: dict, api_key: str) -> str:
-    """Chama a API do Gemini com a imagem do frame para gerar o prompt"""
+    """Chama a API do Gemini Vision com a imagem do frame"""
     data_url = frame.get("data_url", "")
-    
-    parts = [{"text": "Generate a 2D cartoon image prompt based on this TikTok frame. Follow ALL rules strictly. Output only the prompt."}]
 
     if data_url and data_url.startswith("data:image"):
         media_type = data_url.split(";")[0].split(":")[1]
         b64_data = data_url.split(",")[1]
-        parts.append({
-            "inline_data": {
-                "mime_type": media_type,
-                "data": b64_data
+        parts = [
+            {
+                "inline_data": {
+                    "mime_type": media_type,
+                    "data": b64_data
+                }
+            },
+            {
+                "text": "Generate a 2D cartoon image prompt based on this TikTok frame. Follow ALL rules strictly. Output only the prompt."
             }
-        })
+        ]
     else:
         ts = frame.get("timestamp", "unknown")
         parts = [{"text": f"Generate a 2D cartoon image prompt for a TikTok frame at timestamp {ts}. Follow ALL rules strictly. Output only the prompt."}]
 
     response = await client.post(
-        f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
+        f"{GEMINI_ENDPOINT}?key={api_key}",
         headers={"Content-Type": "application/json"},
         json={
-            "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-            "contents": [{"parts": parts}],
-            "generationConfig": {"maxOutputTokens": 300}
+            "systemInstruction": {
+                "parts": [{"text": SYSTEM_PROMPT}]
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": parts
+                }
+            ],
+            "generationConfig": {
+                "maxOutputTokens": 300,
+                "temperature": 0.7
+            }
         }
     )
 
@@ -126,17 +141,14 @@ async def _generate_single_prompt(client: httpx.AsyncClient, frame: dict, api_ke
         raise RuntimeError(f"Gemini API error {response.status_code}: {response.text}")
 
     data = response.json()
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except (KeyError, IndexError):
-        raise RuntimeError(f"Unexpected response from Gemini: {data}")
+    return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
 def _sanitize_prompt(text: str) -> str:
     """Remove qualquer menção às palavras proibidas e garante regras obrigatórias"""
+    import re
     t = text
     for word in FORBIDDEN:
-        import re
         t = re.sub(word, "", t, flags=re.IGNORECASE)
 
     if "2D cartoon" not in t and "2d cartoon" not in t.lower():
