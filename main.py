@@ -131,3 +131,9 @@ async def run_pipeline(job_id: str, req: PipelineRequest):
         })
     except Exception as e:
         jobs[job_id].update({"status": "error", "error": str(e), "step": "failed"})
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
