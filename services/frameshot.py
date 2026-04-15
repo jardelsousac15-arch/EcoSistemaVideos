@@ -114,7 +114,7 @@ def _extract_frames_opencv(video_path: str, frame_count: int, quality: int) -> l
             "frame_index": frame_idx,
             "timestamp": ts_label,
             "timestamp_seconds": round(ts_sec, 2),
-            "filename": f"frame_{str(i+1).padStart(3, '0')}_{ts_label.replace(':', 'm')}s.jpg",
+            "filename": f"frame_{str(i+1).zfill(3)}_{ts_label.replace(':', 'm')}s.jpg",
             "data_url": data_url,
             "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
             "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
